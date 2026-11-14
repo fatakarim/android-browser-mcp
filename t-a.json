@@ -1,0 +1,5 @@
+[
+  { "tool": "device_info", "args": {} },
+  { "tool": "tap", "args": { "x": 100, "y": 100 } },
+  { "tool": "ui_dump", "args": {} }
+]
