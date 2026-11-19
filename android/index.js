@@ -10,6 +10,12 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { bridge } from "./bridge.js";
+import {
+  PACKAGE_REGEX,
+  assertValidPackage,
+  sanitizeAdbInputText,
+  assertValidUrl,
+} from "./guardrails.js";
 
 const pexec = promisify(execFile);
 const ADB = process.env.ADB_PATH || "adb";
@@ -383,8 +389,8 @@ const HANDLERS = {
     return viaControl(
       () => bridge.text(text).then(out),
       async () => {
-        const esc = String(text).replace(/ /g, "%s");
-        await sh(`input text ${JSON.stringify(esc).slice(1, -1)}`);
+        const safeArg = sanitizeAdbInputText(text);
+        await sh(`input text ${safeArg}`);
         return out("typed: " + text);
       }
     );
@@ -429,6 +435,9 @@ const HANDLERS = {
           isError: true,
         };
       }
+    }
+    if (!PACKAGE_REGEX.test(target)) {
+      throw new Error(`Invalid Android package identifier rejected by guardrail: "${target}"`);
     }
     if (await hasDevice()) {
       await sh(`monkey -p ${target} -c android.intent.category.LAUNCHER 1`);
@@ -503,18 +512,20 @@ const HANDLERS = {
     return out(await sh(command));
   },
   async stop_app({ package: pkg, all_users }) {
+    const validPkg = assertValidPackage(pkg);
     if (await hasDevice()) {
-      await sh(`am force-stop ${all_users ? "--user 0 " : ""}${pkg}`);
+      await sh(`am force-stop ${all_users ? "--user 0 " : ""}${validPkg}`);
     } else {
-      await localAm(["force-stop", pkg]);
+      await localAm(["force-stop", validPkg]);
     }
-    return out("force-stopped " + pkg + ((await hasDevice()) ? "" : " (mode lokal)"));
+    return out("force-stopped " + validPkg + ((await hasDevice()) ? "" : " (mode lokal)"));
   },
   async app_info({ package: pkg }) {
-    const path = await sh(`pm path ${pkg} 2>/dev/null || true`);
-    const ver = await sh(`dumpsys package ${pkg} | grep -E "versionName|versionCode" | head -2 || true`);
+    const validPkg = assertValidPackage(pkg);
+    const path = await sh(`pm path ${validPkg} 2>/dev/null || true`);
+    const ver = await sh(`dumpsys package ${validPkg} | grep -E "versionName|versionCode" | head -2 || true`);
     const enabled = await sh(
-      `pm list packages -d ${pkg} | grep -q . && echo DISABLED || echo ENABLED`
+      `pm list packages -d ${validPkg} | grep -q . && echo DISABLED || echo ENABLED`
     );
     return out((path + ver + enabled).trim());
   },
@@ -532,14 +543,16 @@ const HANDLERS = {
     return out(list.length ? list.join("\n") : "none found (try: pm list packages)");
   },
   async open_url({ url, package: pkg }) {
-    const args = ["start", "-a", "android.intent.action.VIEW", "-d", url];
-    if (pkg) args.push(pkg);
+    const safeUrl = assertValidUrl(url);
+    const validPkg = pkg ? assertValidPackage(pkg) : null;
+    const args = ["start", "-a", "android.intent.action.VIEW", "-d", safeUrl];
+    if (validPkg) args.push(validPkg);
     const r = await hasDevice()
-      ? await sh(`am start -a android.intent.action.VIEW -d ${JSON.stringify(url)}${pkg ? " " + pkg : ""}`)
+      ? await sh(`am start -a android.intent.action.VIEW -d '${safeUrl.replace(/'/g, "'\\''")}'${validPkg ? " " + validPkg : ""}`)
       : await localAm(args);
     if (/^Error:|unable to resolve|does not exist|Permission Denial/i.test(String(r)))
       throw new Error(String(r).trim());
-    return out(`opened ${url}${pkg ? " in " + pkg : " (default handler)"}${(await hasDevice()) ? "" : " [mode lokal]"}`);
+    return out(`opened ${safeUrl}${validPkg ? " in " + validPkg : " (default handler)"}${(await hasDevice()) ? "" : " [mode lokal]"}`);
   },
   async device_info() {
     const has = await hasDevice();
@@ -607,7 +620,7 @@ const HANDLERS = {
     const cy = Math.round((Number(m[2]) + Number(m[4])) / 2);
     await sh(`input tap ${cx} ${cy}`);
     await new Promise((r) => setTimeout(r, 400));
-    await sh(`input text ${JSON.stringify(String(text).replace(/ /g, "%s")).slice(1, -1)}`);
+    await sh(`input text ${sanitizeAdbInputText(text)}`);
     if (submit) {
       await new Promise((r) => setTimeout(r, 300));
       await sh("input keyevent 66");

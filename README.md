@@ -1,8 +1,10 @@
 # 🔌 Sandboxed Model Context Protocol (MCP) Device & Browser Bridge
 
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![CI](https://github.com/fatakarim/android-browser-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/fatakarim/android-browser-mcp/actions)
 [![Protocol](https://img.shields.io/badge/Protocol-MCP_JSON--RPC_2.0-6C63FF?style=for-the-badge)](https://modelcontextprotocol.io)
-[![Tools](https://img.shields.io/badge/Exposed_Tools-40%2B_ADB_%26_CDP-10B981?style=for-the-badge)](https://github.com/fatakarim/android-browser-mcp)
+[![Tools](https://img.shields.io/badge/Exposed_Tools-44_ADB_%26_CDP-10B981?style=for-the-badge)](https://github.com/fatakarim/android-browser-mcp)
+[![License](https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge)](LICENSE)
 
 A **Model Context Protocol (MCP)** JSON-RPC 2.0 `stdio` server written in Node.js that bridges AI coding assistants (Claude Desktop, Cursor, OpenCode) to physical **Android hardware via Android Debug Bridge (ADB)** and **Chromium instances via Chrome DevTools Protocol (CDP)** for deterministic End-to-End (E2E) UI verification.
 
