@@ -5,6 +5,7 @@ import {
   assertValidPackage,
   sanitizeAdbInputText,
   assertValidUrl,
+  assertSafeDiagnosticShell,
 } from "../android/guardrails.js";
 
 test("PACKAGE_REGEX & assertValidPackage: accepts valid Android package identifiers", () => {
@@ -28,4 +29,11 @@ test("assertValidUrl: enforces http/https allowlist and rejects shell metacharac
   assert.equal(assertValidUrl("https://fatakarim.github.io"), "https://fatakarim.github.io");
   assert.throws(() => assertValidUrl("https://example.com; reboot"), /rejected by/);
   assert.throws(() => assertValidUrl("javascript:alert(1)"), /Disallowed URL scheme/);
+});
+
+test("assertSafeDiagnosticShell: enforces read-only diagnostic allowlist and blocks chaining by default", () => {
+  assert.equal(assertSafeDiagnosticShell("dumpsys battery"), "dumpsys battery");
+  assert.equal(assertSafeDiagnosticShell("getprop ro.build.version.release"), "getprop ro.build.version.release");
+  assert.throws(() => assertSafeDiagnosticShell("dumpsys battery; rm -rf /sdcard"), /metacharacters/);
+  assert.throws(() => assertSafeDiagnosticShell("rm -rf /sdcard"), /read-only diagnostic allowlist/);
 });

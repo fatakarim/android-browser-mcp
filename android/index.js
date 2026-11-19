@@ -15,6 +15,7 @@ import {
   assertValidPackage,
   sanitizeAdbInputText,
   assertValidUrl,
+  assertSafeDiagnosticShell,
 } from "./guardrails.js";
 
 const pexec = promisify(execFile);
@@ -509,7 +510,9 @@ const HANDLERS = {
     return out((r + "\n" + f).trim());
   },
   async shell({ command }) {
-    return out(await sh(command));
+    const allowUnrestricted = process.env.ALLOW_UNRESTRICTED_ADB_SHELL === "true";
+    const safeCmd = assertSafeDiagnosticShell(command, allowUnrestricted);
+    return out(await sh(safeCmd));
   },
   async stop_app({ package: pkg, all_users }) {
     const validPkg = assertValidPackage(pkg);
